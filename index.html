@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Darmowa Prognoza BTC</title><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#0b0f14"><link rel="icon" href="icons/icon-192.png"><link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}
+body{margin:0;font:15px system-ui,-apple-system,sans-serif;background:#0b0f14;color:#e5e7eb;padding:max(12px,env(safe-area-inset-top)) 12px 24px}
+h1{font-size:18px;margin:6px 0 2px}
+.tabs{display:flex;gap:6px;margin:10px 0;flex-wrap:wrap}
+.tabs button{flex:1;padding:9px 10px;border:0;border-radius:10px;background:#1f2937;color:#e5e7eb;font-weight:600;font-size:14px}
+.tabs button.on{background:#2563eb;color:#fff}
+.card{background:#111827;border-radius:14px;padding:12px;margin-bottom:10px}
+.big{font-size:24px;font-weight:700}.muted{color:#9ca3af;font-size:13px}
+.g{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+canvas{width:100%;height:300px;display:block}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:6px 4px;border-bottom:1px solid #1f2937;text-align:left}
+.up{color:#22c55e}.dn{color:#ef4444}
+.alert{background:#422006;border-left:4px solid #f59e0b;padding:8px;border-radius:8px;margin:4px 0;font-size:13px}
+.hide{display:none}a{color:#60a5fa}#sp_grid td,#sp_grid th{text-align:center;font-size:10px;padding:3px 2px;min-width:20px}
+</style></head>
+<body>
+<h1>📈 Darmowa Prognoza BTC</h1>
+<div class="muted" id="st">Ładowanie…</div>
+<div class="tabs"><button class="on" data-t="m">Prognoza</button><button data-t="w">Portfelowe kombo</button><button data-t="s">Spekulacja 0.33%</button><button data-t="a">Alt sezon</button><button data-t="o">Cykl on-chain</button><button data-t="l">Uczenie</button></div>
+
+<section id="m">
+ <div class="card"><div class="muted">BTC/USD · świece 12h · bot aktualizuje co ~15 min</div><div class="big" id="px">—</div><div id="chg" class="muted"></div></div>
+ <div class="card"><canvas id="ch"></canvas><div class="muted">Przezroczysta świeca = prognoza następnych 12h. Przerywane linie = strefa 1 dnia (90%).</div></div>
+ <div class="card g"><div><div class="muted">Prawdopodobieństwo wzrostu (12h)</div><div class="big" id="pu">—</div></div><div><div class="muted">Trafność w teście historycznym</div><div class="big" id="ha">—</div></div></div>
+ <div class="card"><div class="muted">Model wybrany przez bota: <span id="mn"></span></div></div>
+ <div class="card"><div class="muted">Strefy cenowe (90%)</div><table id="bands"></table></div>
+ <div class="card"><div class="muted">Alerty</div><div id="al" class="muted"></div></div>
+ <div class="card"><div class="muted">Onchain (mempool.space)</div><table id="on"></table></div>
+ <div id="tfm"></div><div class="muted" id="cy"></div>
+ <div class="muted">To statystyka, nie gwarancja ruchu. Nie jest to porada inwestycyjna.</div>
+</section>
+
+<section id="w" class="hide">
+ <div class="card"><div class="muted">Analiza osobna: te dane nie wpływają na prognozę główną. Źródło: mempool.space.</div><table id="wt"></table></div><div id="tfw"></div>
+</section>
+
+<section id="s" class="hide">
+ <div class="card"><div class="muted" id="sp_st">Ładowanie…</div><div class="muted">Osobny moduł i osobne dane, bez wpływu na prognozę główną. Pytanie: który poziom zostanie dotknięty pierwszy w ciągu 12 godzin, +0,33% czy −0,33%.</div></div>
+ <div class="card g"><div><div class="muted">Pierwszy +0,33% (wzrost)</div><div class="big up" id="sp_up">—</div></div><div><div class="muted">Pierwszy −0,33% (spadek)</div><div class="big dn" id="sp_dn">—</div></div></div>
+ <div class="card"><canvas id="sc"></canvas><div class="muted" id="sp_lv"></div></div>
+ <div class="card"><div class="muted">Model: <span id="sp_mn"></span></div><div class="muted" id="sp_ci"></div><div class="muted" id="sp_live"></div></div>
+ <div class="card"><div class="muted">Dzień tygodnia × godzina (UTC): % wzrostu, przy próbie min. 30 (szare = za mało danych)</div><div style="overflow-x:auto"><table id="sp_grid"></table></div></div>
+ <div class="muted">Ruch 0,33% to szum. Wzorce przy tej skali zwykle wychodzą dopiero po wielu latach danych. Nie jest to porada inwestycyjna.</div>
+</section>
+
+<section id="a" class="hide">
+ <div class="card"><div class="muted" id="al_st">Ładowanie…</div><div class="muted">Osobna zakładka, bez wpływu na prognozy. Odświeżane co ok. 30 minut (limity darmowego API).</div></div>
+ <div class="card g"><div><div class="muted">Wskaźnik sezonu altów</div><div class="big" id="al_idx">—</div></div><div><div class="muted">Dominacja BTC</div><div class="big" id="al_dom">—</div></div></div>
+ <div class="card" id="al_verdict"></div>
+ <div class="card"><div class="muted">Metryki rynku</div><table id="al_met"></table></div>
+ <div class="card"><div class="muted">Historia wskaźnika (rośnie z każdym odczytem)</div><canvas id="al_c1" style="height:200px"></canvas></div>
+ <div class="card"><div class="muted">Historia dominacji BTC i stablecoinów</div><canvas id="al_c2" style="height:200px"></canvas></div>
+ <div class="card"><div class="muted">30 dni: 15 największych altcoinów vs BTC (punkty %)</div><canvas id="al_c3" style="height:260px"></canvas></div>
+ <div class="card"><div class="muted">Top 30 altcoinów wg kapitalizacji (bez stablecoinów)</div><div style="overflow-x:auto"><table id="al_tab"></table></div></div>
+ <div class="card"><div class="muted">Potencjał mechaniczny: ile razy cena może wzrosnąć do dawnego szczytu (ATH). To nie jest prognoza.</div><table id="al_pot"></table></div>
+ <div class="muted" id="al_note"></div>
+</section>
+
+<section id="o" class="hide">
+ <div class="card"><div class="muted" id="oc_st">Ładowanie…</div><div class="muted">Osobna zakładka, bez wpływu na inne prognozy. Wskaźniki z artykułu CrypS: wyliczane, zamienniki albo niedostępne bez płatnych źródeł.</div></div>
+ <div class="card g"><div><div class="muted">Temperatura rynku (0–100)</div><div class="big" id="oc_t">—</div></div><div><div class="muted">Prawdopodobieństwo wzrostu w 30 dni</div><div class="big" id="oc_p">—</div></div></div>
+ <div class="card" id="oc_zone"></div>
+ <div class="card"><div class="muted">Wskaźniki z artykułu i dodatkowe</div><div style="overflow-x:auto"><table id="oc_tab"></table></div></div>
+ <div class="card"><div class="muted">Historia temperatury (ostatnie 730 dni)</div><canvas id="oc_c1" style="height:200px"></canvas></div>
+ <div class="card"><div class="muted">Cena BTC (ostatnie 730 dni)</div><canvas id="oc_c2" style="height:200px"></canvas></div>
+ <div class="card"><div class="muted">Trafność kierunku 30 dni według poziomu temperatury (odchylenie od 50%)</div><canvas id="oc_c3" style="height:220px"></canvas><table id="oc_bins"></table></div>
+ <div class="card"><div class="muted">Model i zapis prognoz</div><table id="oc_mod"></table></div>
+ <div class="muted" id="oc_note"></div>
+</section>
+
+<section id="l" class="hide">
+ <div class="card"><div class="muted">Prognozy na żywo (rozliczone po zamknięciu świecy)</div><div class="big" id="lv">0</div><div id="lv2" class="muted"></div></div>
+ <div class="card"><div class="muted">Dane do pobrania (dopisywane, nie są usuwane):</div>
+ <div><a href="data/predictions.jsonl">predictions.jsonl</a> · <a href="data/results.jsonl">results.jsonl</a> · <a href="data/candles12h.csv">candles12h.csv</a> · <a href="data/wallets.jsonl">wallets.jsonl</a> · <a href="data/spec033/predictions.jsonl">spec033/predictions.jsonl</a> · <a href="data/spec033/results.jsonl">spec033/results.jsonl</a></div></div>
+</section>
+
+<script>
+const $=i=>document.getElementById(i);
+let S=null;
+async function load(){
+ try{
+  const r=await fetch('state.json?v='+Date.now(),{cache:'no-store'});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  S=await r.json();render();
+ }catch(e){$('st').textContent='Brak danych od bota: '+e.message+' (uruchom workflow w zakładce Actions)';}
+}
+function render(){
+ const age=(Date.now()/1000-S.updated)/60;
+ $('st').innerHTML=(age>60?'<span class="dn">Dane nieaktualne ('+age.toFixed(0)+' min) — sprawdź Actions</span>':'Dane sprzed '+age.toFixed(0)+' min')+' · '+S.n_candles+' zamkniętych świec 12h';
+ const c=S.candles,last=c[c.length-1],px=S.price,m=S.model;
+ $('px').textContent='$'+px.toLocaleString('en-US',{maximumFractionDigits:0});
+ const ch=(px/last.o-1)*100;
+ $('chg').innerHTML='<span class="'+(ch>=0?'up':'dn')+'">'+(ch>=0?'+':'')+ch.toFixed(2)+'%</span> od otwarcia bieżącej świecy 12h';
+ $('pu').textContent=(m.p_up*100).toFixed(1)+'%';
+ $('ha').textContent=(m.walk_acc*100).toFixed(1)+'%';
+ $('mn').textContent=m.name;
+ $('bands').innerHTML='<tr><th>Horyzont</th><th>Dolna</th><th>Środek</th><th>Górna</th></tr>'+Object.entries(S.bands).map(([k,v])=>`<tr><td>${k}</td><td>${v.lo.toFixed(0)}</td><td>${v.mid.toFixed(0)}</td><td>${v.hi.toFixed(0)}</td></tr>`).join('');
+ $('al').innerHTML=S.alerts.length?S.alerts.map(a=>`<div class="alert">${a}</div>`).join(''):'Brak aktywnych alertów';
+ const o=S.onchain;
+ $('on').innerHTML=o?`<tr><td>Wysokość bloku</td><td>${o.height}</td></tr><tr><td>Szybka opłata</td><td>${o.fast_fee} sat/vB</td></tr><tr><td>Zmiana trudności (szac.)</td><td>${o.diff_change}%</td></tr><tr><td>Do korekty trudności</td><td>${o.remaining} bl.</td></tr>`:'<tr><td>brak danych</td></tr>';
+ const Y=S.cycle;
+ $('cy').textContent=`Cykl halvingowy: dzień ${Y.days} z ${Y.of} · ${Y.days_since_min} dni od minimum z 2 lat ($${Y.min2y.toFixed(0)})`;
+ $('wt').innerHTML='<tr><th>Portfel</th><th>Tx</th><th>Saldo BTC</th><th>Δ tx (24h)</th></tr>'+S.wallets.map(w=>w.tx==null?`<tr><td>${w.a.slice(0,10)}…</td><td colspan=3 class="dn">brak danych</td></tr>`:`<tr><td>${w.a.slice(0,8)}…${w.a.slice(-6)}</td><td>${w.tx}</td><td>${w.bal.toFixed(4)}</td><td class="${w.delta>0?'up':''}">${w.delta>0?'+':''}${w.delta}</td></tr>`).join('');
+ $('lv').textContent=m.live_n;
+ $('lv2').textContent=m.live_n?`Trafność na żywo: ${(m.live_acc*100).toFixed(1)}% · Brier ${m.live_brier.toFixed(3)} (rzut monetą = 0.250, niżej lepiej)`:'Pierwsze rozliczenia po zamknięciu kolejnej świecy 12h.';
+ draw();
+}
+function draw(){
+ const c=$('ch');c.width=c.clientWidth*2;c.height=c.clientHeight*2;
+ const x=c.getContext('2d'),W=c.width,H=c.height,P=20,cs=S.candles,g=S.ghost,z=S.bands['1d'];
+ let hi=Math.max(...cs.map(k=>k.h)),lo=Math.min(...cs.map(k=>k.l));
+ hi=Math.max(hi,g.h,z.hi);lo=Math.min(lo,g.l,z.lo);
+ const Y=v=>H-P-(v-lo)/(hi-lo)*(H-2*P),sx=(W-2*P)/(cs.length+2),X=i=>P+i*sx+sx/2;
+ const cd=(i,o,h,l,cl,al)=>{x.globalAlpha=al;x.strokeStyle=x.fillStyle=cl>=o?'#22c55e':'#ef4444';x.beginPath();x.moveTo(X(i),Y(h));x.lineTo(X(i),Y(l));x.stroke();const a1=Y(o),a2=Y(cl);x.fillRect(X(i)-sx*.35,Math.min(a1,a2),sx*.7,Math.max(2,Math.abs(a2-a1)));x.globalAlpha=1;};
+ cs.forEach((k,i)=>cd(i,k.o,k.h,k.l,k.c,1));
+ cd(cs.length,g.o,g.h,g.l,g.c,.35);
+ x.setLineDash([8,8]);x.strokeStyle='#9ca3af';x.lineWidth=2;
+ [z.lo,z.hi].forEach(v=>{x.beginPath();x.moveTo(P,Y(v));x.lineTo(W-P,Y(v));x.stroke();});
+ x.setLineDash([]);x.lineWidth=1;
+}
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+ document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+ ['m','w','s','a','o','l'].forEach(id=>$(id).classList.toggle('hide',id!==b.dataset.t));if(SP&&b.dataset.t==='s')drawSpec();if(TF)renderTF();if(AL&&b.dataset.t==='a')renderAlt();if(OC&&b.dataset.t==='o')renderOC();
+});
+window.onresize=()=>{if(S)draw();};
+let SP=null;
+async function loadSpec(){
+ try{const r=await fetch('spec_state.json?v='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);SP=await r.json();renderSpec();}
+ catch(e){$('sp_st').textContent='Brak danych spekulacyjnych: '+e.message;}
+}
+const usd=v=>'$'+Math.round(v).toLocaleString('en-US');
+const heat=v=>{const d=Math.max(-.15,Math.min(.15,v-.5))/.15;return d>=0?'rgba(34,197,94,'+(.15+d*.6).toFixed(2)+')':'rgba(239,68,68,'+(.15-d*.6).toFixed(2)+')';};
+function renderSpec(){
+ const m=SP.model,L=SP.levels,ci=m.walk_ci;
+ $('sp_st').textContent='Dane sprzed '+((Date.now()/1000-SP.updated)/60).toFixed(0)+' min · cena '+usd(SP.price);
+ $('sp_up').textContent=(m.p_up*100).toFixed(1)+'%';
+ $('sp_dn').textContent=(m.p_down*100).toFixed(1)+'%';
+ $('sp_lv').textContent='Poziomy od ostatniego zamknięcia 1h ('+usd(SP.ref)+'): +0,33% = '+usd(L.up)+', −0,33% = '+usd(L.dn);
+ $('sp_mn').textContent=m.name;
+ $('sp_ci').textContent='Trafność w historii: '+(m.walk_acc*100).toFixed(2)+'% (95% przedział '+(ci[0]*100).toFixed(2)+'–'+(ci[1]*100).toFixed(2)+'%, ok. '+Math.round(m.eff_n)+' niezależnych okien)';
+ $('sp_live').textContent=m.live_n?'Na żywo: '+m.live_n+' rozliczeń · trafność '+(m.live_acc*100).toFixed(1)+'% · Brier '+m.live_brier.toFixed(3)+' (rzut monetą 0.250)':'Na żywo: pierwsze rozliczenia po 12 godzinach od pierwszej prognozy.';
+ const days=['Pn','Wt','Śr','Cz','Pt','So','Nd'];
+ $('sp_grid').innerHTML='<tr><th></th>'+[...Array(24).keys()].map(h=>'<th>'+h+'</th>').join('')+'</tr>'+days.map((d,i)=>'<tr><td>'+d+'</td>'+SP.grid[i].map(v=>v==null?'<td style="color:#4b5563">·</td>':'<td style="background:'+heat(v)+'" title="'+(v*100).toFixed(1)+'% wzrostu">'+Math.round(v*100)+'</td>').join('')+'</tr>').join('');
+ drawSpec();
+}
+function drawSpec(){
+ const c=$('sc');c.width=c.clientWidth*2;c.height=c.clientHeight*2;
+ const x=c.getContext('2d'),W=c.width,H=c.height,P=20,cs=SP.candles.slice(-72);
+ let hi=Math.max(SP.levels.up,...cs.map(k=>k.h)),lo=Math.min(SP.levels.dn,...cs.map(k=>k.l));
+ const Y=v=>H-P-(v-lo)/(hi-lo)*(H-2*P),sx=(W-2*P)/(cs.length+1),X=i=>P+i*sx+sx/2;
+ cs.forEach((k,i)=>{x.strokeStyle=x.fillStyle=k.c>=k.o?'#22c55e':'#ef4444';x.beginPath();x.moveTo(X(i),Y(k.h));x.lineTo(X(i),Y(k.l));x.stroke();const a1=Y(k.o),a2=Y(k.c);x.fillRect(X(i)-sx*.35,Math.min(a1,a2),sx*.7,Math.max(2,Math.abs(a2-a1)));});
+ x.setLineDash([6,6]);x.lineWidth=2;
+ [[SP.levels.up,'#22c55e'],[SP.levels.dn,'#ef4444'],[SP.ref,'#9ca3af']].forEach(([v,col])=>{x.strokeStyle=col;x.beginPath();x.moveTo(P,Y(v));x.lineTo(W-P,Y(v));x.stroke();});
+ x.setLineDash([]);x.lineWidth=1;
+}
+let TF=null;
+const TFN={'1m':'1 minuta','5m':'5 minut','15m':'15 minut','1h':'1 godzina','4h':'4 godziny'};
+async function loadTF(){
+ try{const r=await fetch('data/tf_state.json?v='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);TF=await r.json();renderTF();}
+ catch(e){$('tfm').innerHTML='<div class="card muted">Wykresy interwałów: brak danych ('+e.message+')</div>';}
+}
+function tfCard(id,tf,d){
+ const T3=d.p3?('<div class="muted">Trzy scenariusze w ciągu '+d.h+' świec: ↑ wzrost powyżej '+usd(d.up_lvl)+': <b>'+(d.p3.up*100).toFixed(1)+'%</b> · ↔ w bok (między '+usd(d.dn_lvl)+' a '+usd(d.up_lvl)+'): <b>'+(d.p3.flat*100).toFixed(1)+'%</b> · ↓ spadek poniżej '+usd(d.dn_lvl)+': <b>'+(d.p3.down*100).toFixed(1)+'%</b>'+(d.skill==null?'':' · różnica względem zwykłych częstości: '+(d.skill*100).toFixed(2)+'%')+'</div>'):'';
+ const ci=d.ci;
+ return '<div class="card"><div class="muted">'+TFN[tf]+' · model: '+d.model+'</div>'+
+  '<div class="big">'+(d.p_up*100).toFixed(1)+'% wzrost · '+((1-d.p_up)*100).toFixed(1)+'% spadek</div>'+T3+
+  '<div class="muted">Trafność kierunku w historii '+(d.walk_acc*100).toFixed(2)+'% (95% przedział '+(ci[0]*100).toFixed(2)+'–'+(ci[1]*100).toFixed(2)+'%, '+d.n+' świec): '+d.verdict+'</div>'+
+  '<canvas id="'+id+'-'+tf+'" style="height:220px"></canvas>'+
+  '<div class="muted">Scenariusz wzrostu do '+usd(d.up_end)+', spadku do '+usd(d.dn_end)+' (granice 90% po '+d.h+' świecach)</div></div>';
+}
+function drawTF(cid,d){
+ const c=$(cid);if(!c||!d||!d.candles.length)return;
+ c.width=c.clientWidth*2;c.height=c.clientHeight*2;
+ const x=c.getContext('2d'),W=c.width,H=c.height,P=16,cs=d.candles,n=cs.length;
+ const hi=Math.max(...cs.map(k=>k.h),d.up_end,d.up_lvl||0),lo=Math.min(...cs.map(k=>k.l),d.dn_end,d.dn_lvl||Infinity);
+ const Y=v=>H-P-(v-lo)/(hi-lo)*(H-2*P),sx=(W-2*P)/(n+d.h+1),X=i=>P+i*sx+sx/2;
+ if(d.up_lvl&&d.dn_lvl){x.fillStyle='rgba(156,163,175,0.14)';x.fillRect(P,Y(d.up_lvl),W-2*P,Y(d.dn_lvl)-Y(d.up_lvl));}
+ cs.forEach((k,i)=>{x.strokeStyle=x.fillStyle=k.c>=k.o?'#22c55e':'#ef4444';x.beginPath();x.moveTo(X(i),Y(k.h));x.lineTo(X(i),Y(k.l));x.stroke();const a1=Y(k.o),a2=Y(k.c);x.fillRect(X(i)-sx*.35,Math.min(a1,a2),sx*.7,Math.max(2,Math.abs(a2-a1)));});
+ x.setLineDash([8,6]);x.lineWidth=3;
+ [[d.up_end,'#22c55e',d.p_up],[d.dn_end,'#ef4444',1-d.p_up]].forEach(([v,col,p])=>{
+  x.globalAlpha=.45+.55*p;x.strokeStyle=col;x.beginPath();x.moveTo(X(n-1),Y(d.px));x.lineTo(X(n-1+d.h),Y(v));x.stroke();});
+ x.setLineDash([]);x.globalAlpha=1;x.lineWidth=1;
+}
+function renderTF(){
+ if(!TF)return;
+ const tfs=['1m','5m','15m','1h','4h'];
+ $('tfm').innerHTML='<div class="card muted">Cena i prognoza wg interwału. To ocena historyczna modelu, nie gwarancja ruchu.</div>'+tfs.filter(t=>TF.tf[t]).map(t=>tfCard('tfm',t,TF.tf[t])).join('');
+ const wc=tfs.filter(t=>TF.wallet&&TF.wallet[t]).map(t=>tfCard('tfw',t,TF.wallet[t])).join('');
+ $('tfw').innerHTML='<div class="card muted">Aktywność 10 portfeli na świecach każdego interwału. Osobny model, bez wpływu na prognozę główną.</div>'+(wc||'<div class="card muted">Brak danych o transakcjach portfeli.</div>');
+ tfs.forEach(t=>{drawTF('tfm-'+t,TF.tf[t]);drawTF('tfw-'+t,TF.wallet&&TF.wallet[t]);});
+}
+let AL=null;
+async function loadAlt(){
+ try{const r=await fetch('data/alt_state.json?v='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);AL=await r.json();renderAlt();}
+ catch(e){$('al_st').textContent='Brak danych alt sezonu ('+e.message+'). Pojawią się po pierwszym odczycie bota.';}
+}
+const pct=v=>v==null?'—':'<span class="'+(v>=0?'up':'dn')+'">'+v.toFixed(1)+'%</span>';
+const fmtP=p=>p<1?p.toPrecision(3):p.toLocaleString('en-US',{maximumFractionDigits:2});
+function lineC(cid,series){
+ const c=$(cid);if(!c)return;c.width=c.clientWidth*2;c.height=c.clientHeight*2;
+ const x=c.getContext('2d'),W=c.width,H=c.height,P=24;x.clearRect(0,0,W,H);
+ const all=series.flatMap(s=>s.v.filter(v=>v!=null));
+ if(all.length<2){x.fillStyle='#9ca3af';x.font='26px sans-serif';x.fillText('Za mało odczytów. Wykres rośnie z każdym odczytem.',P,H/2);return;}
+ const lo=Math.min(...all),hi=Math.max(...all),n=Math.max(...series.map(s=>s.v.length));
+ const X=i=>P+i*(W-2*P)/Math.max(1,n-1),Y=v=>H-P-(v-lo)/((hi-lo)||1)*(H-2*P);
+ series.forEach((s,k)=>{x.strokeStyle=s.c;x.lineWidth=3;x.beginPath();let f=true;
+  s.v.forEach((v,i)=>{if(v==null)return;f?x.moveTo(X(i),Y(v)):x.lineTo(X(i),Y(v));f=false;});x.stroke();
+  x.fillStyle=s.c;x.font='22px sans-serif';x.fillText(s.n,P+k*280,P+4);});
+}
+function barC(cid,labels,vals){
+ const c=$(cid);if(!c)return;c.width=c.clientWidth*2;c.height=c.clientHeight*2;
+ const x=c.getContext('2d'),W=c.width,H=c.height,P=16;x.clearRect(0,0,W,H);
+ const m=Math.max(1,...vals.map(v=>Math.abs(v))),bw=(W-2*P)/Math.max(1,labels.length),mid=H*.42;
+ vals.forEach((v,i)=>{x.fillStyle=v>=0?'#22c55e':'#ef4444';const h=Math.abs(v)/m*(mid-P);x.fillRect(P+i*bw+bw*.15,v>=0?mid-h:mid,bw*.7,Math.max(2,h));});
+ x.fillStyle='#9ca3af';x.font='20px sans-serif';
+ labels.forEach((l,i)=>{x.save();x.translate(P+i*bw+bw/2,H-4);x.rotate(-Math.PI/4);x.fillText(l,0,0);x.restore();});
+}
+function renderAlt(){
+ const s=AL,m=s.metrics;
+ $('al_st').textContent='Dane z '+new Date(s.updated*1000).toLocaleString('pl-PL')+(s.errors.length?' · uwaga: '+s.errors.join(', '):'');
+ $('al_idx').textContent=m.composite.toFixed(0)+' / 100';
+ $('al_dom').textContent=m.btc_dom.toFixed(1)+'%';
+ $('al_verdict').innerHTML='<div class="big">'+m.verdict+'</div><div class="muted">'+m.verdict_note+'</div><div class="muted" style="margin-top:8px">Lista kontrolna sezonu altów:</div>'+m.checks.map(c=>'<div>'+(c[1]==null?'—':c[1]?'✔':'✖')+' '+c[0]+'</div>').join('');
+ const rows=[['Top 50 altów pokonujących BTC (30 dni)',m.beat_pct.toFixed(0)+'%'],['Dominacja stablecoinów',m.stable_dom.toFixed(1)+'%'],['Kapitalizacja altów (bez BTC, ETH, stabli)',(m.alt_cap/1e9).toFixed(0)+' mld $'],['ETH/BTC',m.eth_btc.toFixed(4)],['Indeks strachu i chciwości',m.fng==null?'brak':m.fng+' ('+m.fng_label+')'],['Mediana 30 dni, top 50 altów',m.median30.toFixed(1)+'%'],['BTC 30 dni',m.btc30.toFixed(1)+'%'],['Kapitalizacja całego rynku',(m.total/1e12).toFixed(2)+' bln $']];
+ $('al_met').innerHTML=rows.map(r=>'<tr><td>'+r[0]+'</td><td><b>'+r[1]+'</b></td></tr>').join('');
+ const H=s.history;
+ lineC('al_c1',[{n:'Wskaźnik sezonu',c:'#60a5fa',v:H.map(h=>h.composite)},{n:'% altów > BTC',c:'#22c55e',v:H.map(h=>h.beat_pct)}]);
+ lineC('al_c2',[{n:'Dominacja BTC %',c:'#f59e0b',v:H.map(h=>h.btc_dom)},{n:'Stablecoiny %',c:'#a78bfa',v:H.map(h=>h.stable_dom)}]);
+ barC('al_c3',s.top15.map(a=>a.sym.toUpperCase()),s.top15.map(a=>a.rel30));
+ $('al_tab').innerHTML='<tr><th>#</th><th>Coin</th><th>Kapit. mld $</th><th>Cena $</th><th>24h</th><th>7d</th><th>30d</th><th>vs BTC 30d</th><th>od ATH</th></tr>'+s.table.map((a,i)=>'<tr><td>'+(i+1)+'</td><td>'+a.sym.toUpperCase()+'</td><td>'+(a.cap/1e9).toFixed(2)+'</td><td>'+fmtP(a.price)+'</td><td>'+pct(a.d1)+'</td><td>'+pct(a.d7)+'</td><td>'+pct(a.d30)+'</td><td>'+pct(a.rel30)+'</td><td>'+a.ath.toFixed(0)+'%</td></tr>').join('');
+ $('al_pot').innerHTML='<tr><th>Coin</th><th>Razy do ATH</th><th>od ATH</th><th>vs BTC 30d</th></tr>'+s.potential.map(a=>'<tr><td>'+a.sym.toUpperCase()+'</td><td>'+a.pot.toFixed(1)+'×</td><td>'+a.ath.toFixed(0)+'%</td><td>'+pct(a.rel30)+'</td></tr>').join('');
+ $('al_note').textContent=s.attribution;
+}
+let OC=null;
+async function loadOC(){
+ try{const r=await fetch('data/onchain_state.json?v='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);OC=await r.json();renderOC();}
+ catch(e){$('oc_st').textContent='Brak danych on-chain ('+e.message+'). Pojawią się po pierwszym odczycie bota.';}
+}
+function renderOC(){
+ const s=OC,m=s.model;
+ $('oc_st').textContent='Dane dzienne do '+s.data_day+' · odczyt z '+new Date(s.updated*1000).toLocaleString('pl-PL');
+ $('oc_t').textContent=s.composite==null?'—':s.composite.toFixed(0)+' / 100';
+ $('oc_p').textContent=(m.p_up*100).toFixed(1)+'%';
+ $('oc_zone').innerHTML='<div class="big">'+(s.zone||'brak danych')+'</div><div class="muted">Temperatura to średnia z czterech wskaźników liczonych z rankingu w ostatnich 4 latach. Im wyżej, tym bardziej rozgrzany rynek.</div>';
+ $('oc_tab').innerHTML='<tr><th>Wskaźnik</th><th>Status</th><th>Wartość dziś</th><th>Uwagi</th></tr>'+s.indicators.map(i=>'<tr><td>'+i.name+'</td><td>'+i.status+'</td><td>'+(i.value==null?'—':i.value+(i.unit?' '+i.unit:''))+'</td><td>'+i.note+'</td></tr>').join('');
+ const C=s.charts;
+ lineC('oc_c1',[{n:'Temperatura',c:'#60a5fa',v:C.composite}]);
+ lineC('oc_c2',[{n:'Cena BTC',c:'#f59e0b',v:C.price}]);
+ barC('oc_c3',s.bins.map(b=>b.lo+'–'+b.hi),s.bins.map(b=>b.p==null?0:b.p-0.5));
+ $('oc_bins').innerHTML='<tr><th>Temperatura</th><th>Dni</th><th>Wzrost w 30 dni</th></tr>'+s.bins.map(b=>'<tr><td>'+b.lo+'–'+b.hi+'</td><td>'+b.n+'</td><td>'+(b.p==null?'—':(b.p*100).toFixed(1)+'%')+'</td></tr>').join('');
+ $('oc_mod').innerHTML=[['Model',m.name],['Bazowa częstość wzrostu 30 dni',(m.base_rate*100).toFixed(1)+'%'],['Trafność w historii (walk-forward)',(m.walk_acc*100).toFixed(2)+'%'],['Prognozy na żywo (rozliczone)',m.live_n],['Trafność na żywo',m.live_acc==null?'—':(m.live_acc*100).toFixed(1)+'%'],['Zabezpieczenie',m.fallback?'włączone (50%)':'nieaktywne']].map(r=>'<tr><td>'+r[0]+'</td><td><b>'+r[1]+'</b></td></tr>').join('');
+ $('oc_note').textContent=s.attribution;
+}
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+loadTF();setInterval(loadTF,3e5);
+load();loadSpec();loadAlt();loadOC();setInterval(()=>{load();loadSpec();loadAlt();loadOC();},3e5);
+</script>
+</body></html>
